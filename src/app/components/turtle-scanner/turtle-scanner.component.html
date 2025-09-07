@@ -1,0 +1,233 @@
+<!-- turtle-scanner.component.html -->
+<div class="container">
+  <div class="header">
+    <div class="header-text">
+      <h1>TURTLE SCANNER</h1>
+    </div>
+    <button class="btn secondary" (click)="onHealthCheck()" [disabled]="loading">Server Health</button>
+  </div>
+
+
+  <div class="controls-panel">
+    <!-- Inputs Section -->
+    <div class="controls-card">
+      <div class="inputs-row">
+        <div class="input-group">
+          <label for="symbols">TICKER</label>
+          <input id="symbols" [(ngModel)]="symbols" placeholder="Add multiple like: ADSK, NVDA, FCX"
+            [disabled]="loading" />
+        </div>
+
+        <div class="input-group">
+          <label for="daysBack">Días atrás</label>
+          <input id="daysBack" type="number" [(ngModel)]="daysBack" min="0" max="365" [disabled]="loading" />
+        </div>
+
+        <div class="input-group">
+          <label for="entry">Entry lookback</label>
+          <input id="entry" type="number" [(ngModel)]="entryLookback" min="1" max="365" [disabled]="loading" />
+        </div>
+
+        <div class="input-group">
+          <label for="exit">Exit lookback</label>
+          <input id="exit" type="number" [(ngModel)]="exitLookback" min="1" max="365" [disabled]="loading" />
+        </div>
+      </div>
+
+      <!-- Buttons Section -->
+      <div class="buttons-row">
+        <button class="btn secondary" (click)="onScan()" [disabled]="loading">Single Scan</button>
+        <button class="btn secondary" (click)="onScanAll()" [disabled]="loading"
+          title="Escanea lista completa de tickers del servidor">Full Scan</button>
+        <!-- <button class="btn secondary" (click)="onDownloadCSV()" [disabled]="!lastPayload">Export CSV</button> -->
+      </div>
+
+      <!-- Filters Section -->
+      <div class="search-box" *ngIf="(onScanAllButtonPressed || onScanButtonPressed) && !loading && originalCount > 4">
+        <div class="filters-bar">
+          <div class="filters-row">
+            <button *ngFor="let option of badgeOptions" (click)="toggleBadgeFilter(option.value)"
+              [class.selected]="isBadgeSelected(option.value)">
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Searchbar -->
+        <div class="search-box" *ngIf="onScanAllButtonPressed && !loading">
+          <input type="text" class="search-input" placeholder="Search tickers..." [(ngModel)]="filters.searchTerm"
+            (input)="onSearchChange()" />
+            <button class="btn secondary" (click)="onDownloadCSV()" [disabled]="!lastPayload">Export CSV</button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results">
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="error" [innerHTML]="errorMessage"></div>
+
+    <!-- Success Message -->
+    <div
+      *ngIf="successMessage && onScanAllButtonPressed != true && onScanButtonPressed != true && serverHealthButtonPressed != true"
+      class="loading" [innerHTML]="successMessage"></div>
+
+    <!-- Server health Message -->
+    <div *ngIf="serverHealthButtonPressed " class="loading" [innerHTML]="serverHealthMessage"></div>
+
+    <!-- Loading/Progress -->
+    <div *ngIf="loading && scanProgress.total > 0" class="loading">
+      <strong>SCANNING...</strong>
+      <div class="small">{{scanProgress.current}} of {{scanProgress.total}} tickers processed
+        ({{getProgressPercentage()}}%)</div>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="getProgressPercentage()"></div>
+      </div>
+    </div>
+
+    <!-- Default Instructions -->
+    <div *ngIf="!loading && !errorMessage && !successMessage && tickerResults.length === 0" class="loading">
+      <strong>No results</strong>
+    </div>
+
+    <!-- Results -->
+    <div *ngIf="tickerResults.length > 0">
+      <!-- Stats -->
+      <!-- <div class="stats">
+        <div class="stat">
+          <div class="stat-value">{{scanStats.totalSymbols}}</div>
+          <div class="stat-label">Símbolos Escaneados</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" style="color: var(--success)">{{scanStats.activePositions}}</div>
+          <div class="stat-label">Posiciones Activas</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" style="color: var(--accent)">{{scanStats.recentSignals}}</div>
+          <div class="stat-label">Señales Recientes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" [style.color]="scanStats.errors > 0 ? 'var(--danger)' : 'var(--muted)'">
+            {{scanStats.errors}}</div>
+          <div class="stat-label">Errores</div>
+        </div>
+      </div> -->
+
+      <!-- Cards -->
+      <div class="cards">
+        <div *ngFor="let ticker of tickerResults" class="card">
+          <!-- Error Card -->
+          <div *ngIf="ticker.hasError">
+            <div class="hdr">
+              <div style="font-weight:800">{{ticker.symbol}}</div>
+              <div class="small" style="color:var(--danger)">{{ticker.error}}</div>
+            </div>
+          </div>
+
+          <!-- Normal Card -->
+          <div *ngIf="!ticker.hasError">
+            <div class="hdr">
+              <div>
+                <div style="font-weight:800">{{ ticker.symbol }}</div>
+              </div>
+              <div class="badge" [ngClass]="ticker.badgeClass">
+                {{ ticker.badgeText }}
+              </div>
+            </div>
+
+            <div class="metrics">
+              <div class="metric">
+                <div class="small">CURRENT PRICE</div>
+                <div style="font-weight:800">${{fmt(ticker.lastState?.current_price)}}</div>
+              </div>
+              <div class="metric">
+                <div class="small">ATR</div>
+                <div style="font-weight:800">${{fmt(ticker.lastState?.atr)}}</div>
+              </div>
+
+              <div *ngIf="ticker.latestBuy" class="metric">
+                <div class="small">Señal (hace {{ticker.latestBuy.days_ago}} d)</div>
+                <div style="font-weight:800">${{fmt(ticker.latestBuy.price)}}</div>
+              </div>
+              <div *ngIf="ticker.latestBuy" class="metric">
+                <div class="small">Performance</div>
+                <div style="font-weight:800"
+                  [style.color]="ticker.performance && ticker.performance > 0 ? 'var(--success)' : ticker.performance && ticker.performance < 0 ? 'var(--danger)' : ''">
+                  {{ticker.performance !== null && ticker.performance !== undefined ?
+                  (ticker.performance > 0 ? '+' : '') + ticker.performance.toFixed(1) + '%' : 'N/A'}}
+                </div>
+              </div>
+
+              <div *ngIf="!ticker.latestBuy" class="metric">
+                <div class="small">ENTRY</div>
+                <div style="font-weight:800">
+                  {{ticker.lastState?.current_entry ? '$' + fmt(ticker.lastState?.current_entry) : 'N/A'}}
+                </div>
+              </div>
+              <div *ngIf="!ticker.latestBuy" class="metric">
+                <div class="small">EXIT</div>
+                <div style="font-weight:800">
+                  {{ticker.lastState?.current_exit ? '$' + fmt(ticker.lastState?.current_exit) : 'N/A'}}
+                </div>
+              </div>
+            </div>
+
+            <!-- Stop Losses for Active Positions -->
+            <div *ngIf="ticker.isActive && ticker.lastState?.atr && ticker.lastState?.current_price"
+              style="margin-top:8px" class="metrics">
+              <div class="metric">
+                <div class="small">STOP LOSS 1.5 ATR</div>
+                <div>
+                  ${{fmt(ticker.lastState!.current_price - 1.5 * ticker.lastState!.atr)}}
+                </div>
+              </div>
+              <div class="metric">
+                <div class="small">Stop 2.0 ATR</div>
+                <div>
+                  ${{fmt(ticker.lastState!.current_price - 2.0 * ticker.lastState!.atr)}}
+                </div>
+              </div>
+            </div>
+
+            <!-- History -->
+            <div style="margin-top:10px">
+              <details>
+                <summary style="cursor:pointer;font-weight:700">📊 Historial</summary>
+                <div *ngIf="ticker.history && ticker.history.length > 0" class="details"
+                  style="margin-top:8px;overflow:auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>OPEN</th>
+                        <th>CLOSE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let h of ticker.history"
+                        [style.background-color]="h.hasBuySignal ? '#bff5bf' : (h.hasSellSignal ? '#ffada3' : '')"
+                        [style.font-weight]="(h.hasBuySignal || h.hasSellSignal) ? 'bold' : ''">
+                        <td style="font-size: 12px;">{{h.date}}</td>
+                        <td>{{h.open !== null ? '$' + fmt(h.open) : 'N/A'}}</td>
+                        <td>{{h.close !== null ? '$' + fmt(h.close) : 'N/A'}}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div *ngIf="!ticker.history || ticker.history.length === 0" class="small" style="padding:8px">
+                  No hay historial disponible.
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <!-- Resultado obtenido vía <strong>yfinance</strong> en tu servidor local. El historial se muestra en orden descendente (más reciente primero). -->
+  </div>
+</div>

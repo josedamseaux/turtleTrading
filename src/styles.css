@@ -1,0 +1,49 @@
+/* You can add global styles to this file, and also import other style files */
+:root{
+  --bg1:#1e3c72;
+  --bg2:#2a5298;
+  --accent:#667eea;
+  --card:#ffffff;
+  --muted:#666;
+  --success:#2e7d32;
+  --danger:#c62828;
+  --glass: rgba(255,255,255,0.95);
+}
+
+
+/* Mejorar la visibilidad de los badges existentes si es necesario */
+.badge.active {
+  background-color: #28a745;
+  color: white;
+  font-weight: bold;
+}
+
+.badge.no {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* Variables CSS que podrías necesitar si no las tienes */
+:root {
+  --danger: #dc3545;
+  --success: #28a745;
+  --warning: #ffc107;
+  --accent: #007bff;
+  --muted: #6c757d;
+}
+
+
+.badge.sell-stop {
+  background-color: #dc3545;
+  color: white;
+  font-weight: bold;
+  animation: pulse-sell 2s infinite;
+}
+
+@keyframes pulse-sell {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+body, html, app-root {
+  background-color: #ffffff !important;
+}
